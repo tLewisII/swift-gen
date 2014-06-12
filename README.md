@@ -40,7 +40,6 @@ This lets you write `type` as `_type` so the code is valid syntax.
 
 Standard library:
 
-- A curried `create`
 - `Equatable`
 - `Printable`
 - `Hashable`
@@ -55,6 +54,8 @@ swiftz:
 
 todo:
 
+- A curried `create`
 - swift thrift
 - void types?
 - quasi quote method bodies
+- ArrayLiteralConvertible

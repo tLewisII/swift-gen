@@ -2,7 +2,7 @@
 module Main where
 
 import Prelude hiding (take, drop, head, tail)
-import Data.Text hiding (reverse, zip)
+import Data.Text hiding (reverse, zip, filter)
 import Data.Monoid
 import System.Environment
 import Language.Haskell.Exts as HS hiding (prettyPrint)
@@ -12,7 +12,7 @@ data Swift = Swift { _name :: Text, _derive :: [Text]
                    , _cons :: [(Text, [(Either Text Text, Text)])] }
 
 prettyPrint :: Swift -> Text
-prettyPrint (Swift n cs ts ct) =
+prettyPrint sw@(Swift n cs ts ct) =
   -- struct Foo<A> : Bar, Baz {
       st' <~> n <> tyargs <> cs' <~> "{"
   
@@ -23,8 +23,21 @@ prettyPrint (Swift n cs ts ct) =
         [(con, xs)] -> mkCon xs
         (_:_) -> intercalate "\n" (fmap (\(con, xs) -> "  case" <~> con <> "(" <> intercalate ", " (fmap mcon xs) <> ")") ct))
   
+  -- init functions
+  -- TODO
+  
+  -- deriving function requirements
+  <|> intercalate "\n" (filter (/= "") (fmap (runDriverInside sw) cs))
+  
+  -- insert quasi quoted swift
+  -- TODO
+  
   -- }
   <|> "}"
+  
+  -- external function requirements (i.e. extensions)
+  <|> intercalate "\n" (filter (/= "") (fmap (runDriverOutside sw) cs))
+  
   where
     st' = case ct of
       [_] -> "struct"
@@ -67,7 +80,7 @@ mkData _dn _ (Ident n) bs qs dr = Swift n' dr' bs' qs'
     mkcon (QualConDecl _ tvs ctx (RecDecl n ts)) = (unn n, fmap (\(ns, t) ->
               (Right (nameRec ns), typ (unb t))) ts)
     mkcon (QualConDecl _ tvs ctx (InfixConDecl _ _ _)) = error "infix con decls not supported"
-
+    
     -- drop 1 _ from the start of records
     nameRec [(Ident ('_':n))] = pack n
     nameRec [(Ident n)] = pack n
@@ -95,9 +108,61 @@ typ (TyInfix _ _ _)                            = error "infix types not supporte
 typ (TyKind _ _)                               = error "type kinds not supported"
 typ (TyPromoted _)                             = error "promoted types not supported"
 
-
 foldup (TyApp l r) = (r:foldup l)
 foldup x = [x]
+
+-- deriving drivers
+
+runDriverInside :: Swift -> Text -> Text
+runDriverInside sw "Printable" = ""
+runDriverInside sw "Equatable" = ""
+runDriverInside sw "Comparable" = ""
+runDriverInside sw "Hashable" = ""
+-- swiftz
+runDriverInside sw "JSON" = ""
+runDriverInside sw x = error ("no known deriver for " <> unpack x)
+
+runDriverOutside :: Swift -> Text -> Text
+runDriverOutside sw "Printable" = ""
+runDriverOutside (Swift n _ ty cons) "Equatable" =
+  "func==" <> tyParams <> "(lhs: " <> thetype <> ", rhs: " <> thetype <> ") -> Bool {"
+  
+  <|>
+  (case cons of
+    [(con, [])] -> "  return true" -- 1 con, 0 fields
+    [(con, xs)] -> -- 1 con, n fields, struct
+        "  return" <~> crossProdIf True xs
+        
+    _ -> -- enum, n cons
+        "  switch (lhs, rhs) {"
+        <|> intercalate "\n" (fmap mkEqCases cons)
+        <|> "  }")
+  <|>
+  "}"
+  where
+    tyParams = case ty of
+      [] -> ""
+      (_:_) -> "<" <> intercalate ", " (fmap (\x -> x <> ": Equatable") ty) <> ">"
+    thetype = case ty of
+      [] -> n
+      (_:_) -> n <> "<" <> intercalate ", " ty <> ">"
+
+    mkEqCases (con, []) =   "    case (." <> con <> ", ." <> con <> "):"
+                        <|> "      return true"
+    mkEqCases (con, xs) =   "    case let (."
+                                    <> con <> "(" <> fields "l" xs <> "), ."
+                                    <> con <> "(" <> fields "r" xs <> ")):"
+                        <|> "      return" <~> crossProdIf False xs
+    crossProdIf useob xs = intercalate " && " (fmap (\(n, _) -> if useob
+                            then "lhs." <> get n <> " == " <> "rhs." <> get n
+                            else "l" <> get n <> " == " <> "r" <> get n) xs)
+    fields idf xs = intercalate ", " (fmap (\(n, _) -> idf <> get n) xs)
+
+runDriverOutside sw "Comparable" = ""
+runDriverOutside sw "Hashable" = ""
+-- swiftz
+runDriverOutside sw "JSON" = ""
+runDriverOutside sw x = error ("no known deriver for " <> unpack x)
 
 -- main
 main :: IO ()
@@ -168,3 +233,6 @@ unn (Ident s) = pack s
 unn (Symbol _) = error "symbolic names not supported"
 
 toTitle' n = toTitle (take 1 (pack n)) <> drop 1 (pack n)
+
+get (Left v) = v
+get (Right v) = v
