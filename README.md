@@ -1,6 +1,6 @@
 # swift-gen
 
-Generate boilerplate swift with a simple DSL!
+Generate Swift structs / enums with protocol implementations!
 
 *You can get pretty far without macros!*
 
@@ -8,21 +8,49 @@ Generate boilerplate swift with a simple DSL!
 
 ## Example
 
-```
+Define your structs / enums in a simple DSL and ask protocols
+to be derived for you by the `deriving` keyword.
+
+```haskell
 -- GeoJSON
 data GeoJSON = GeoJSON { _type :: String
                        , features :: Array Feature }
-  deriving (Printable, Equatable, JSON)
+  deriving (Printable, Equatable)
 
 data Feature = Feature { _type :: String
                        , geometry :: Array Coordinate
                        , properties :: Dictionary String String }
-  deriving (Printable, Equatable, JSON)
+  deriving (Printable, Equatable)
 
 data Coordinate = Coordinate { _type :: String
                              , coordinates :: Array Double }
-  deriving (Printable, Equatable, JSON)
+  deriving (Printable, Equatable)
 
+```
+
+Now run `swift-gen file.swift.gen` and it produces a definition of the
+structs and enums with Printable and Equatable implemented!
+
+```swift
+struct GeoJSON : Printable, Equatable, JSON {
+  let type: String
+  let features: Array<Feature>
+  var description: String {
+    get {
+      return "GeoJSON(\(type), \(features))"
+    }
+  }
+}
+func==(lhs: GeoJSON, rhs: GeoJSON) -> Bool {
+  return lhs.type == rhs.type && lhs.features == rhs.features
+}
+// ... the same for Feature and Coordinate
+```
+
+Let's see this in action:
+```swift
+println(GeoJSON(type: "Feature", features: [Feature(type: "Coordinate", geometry: [Coordinate(type: "fixed", coordinates: [2.0, 4.0])], properties: ["foo": "bar"])]))
+// prints GeoJSON(Feature, [Feature(Coordinate, [Coordinate(fixed, [2.0, 4.0])], [foo: bar])])
 ```
 
 ## Usage
@@ -42,19 +70,19 @@ Standard library:
 
 - `Equatable`
 - `Printable`
-- `Hashable`
-- `Comparable`
 
-swiftz:
+## TODO / Help wanted
 
-- Value boxing when required (via `Box`)
-- `JSON`
-- `Dataable`
-- `Lens`
-
-todo:
-
-- Switch to a `language-swift-quote`
+- Standard library
+  - `Hashable`
+  - `Comparable`
+- swiftz
+  - Value boxing when required (via `Box`)
+  - `JSON`
+  - `Dataable`
+  - `Lens`
+- Switch to `language-swift-quote`
+- XCode integration tutorial
 - A curried `create`
 - thrift generation
 - void types?

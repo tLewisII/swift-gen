@@ -137,7 +137,26 @@ runDriverInside sw "Equatable" = ""
 -- runDriverInside sw "Comparable" = ""
 -- runDriverInside sw "Hashable" = ""
 -- swiftz
--- runDriverInside sw "JSON" = ""
+runDriverInside (Swift n d ts [cs]) "JSON" = "" -- error "JSON not implemented"
+  --     "  static func fromJSON(x: JSValue) -> T? {"
+  -- <|> "    var v$N: $T?"
+  -- <|> "    switch x {"
+  -- <|> "      case let .JSObject(d):"
+  -- <|> "        v$N = d[\"$N\"] >>= $JST"
+  -- <|> "        if ($NS) {"
+  -- <|> "          return $T($N: v$N!, ...)"
+  -- <|> "        } else {"
+  -- <|> "          return nil"
+  -- <|> "        }"
+  -- <|> "      default: return nil"
+  -- <|> "    }"
+  -- <|> "  }"
+  -- -- toJson
+  -- <|> "  func toJSON() -> JSValue {"
+  -- <|> "  }"
+
+-- We could do this one day
+runDriverInside _ "JSON" = error "json can only be derived on a struct, not an enum"
 runDriverInside sw x = error ("no known deriver for " <> unpack x)
 
 runDriverOutside :: Swift -> Text -> Text
@@ -164,7 +183,7 @@ runDriverOutside (Swift n _ ty cons) "Equatable" =
     thetype = case ty of
       [] -> n
       (_:_) -> n <> "<" <> intercalate ", " ty <> ">"
-
+    
     crossProdIf _ _ [] = "true"
     crossProdIf useob _ xs = intercalate " && " (fmap (\(n, _) -> if useob
                             then "lhs." <> get n <> " == " <> "rhs." <> get n
@@ -173,7 +192,7 @@ runDriverOutside (Swift n _ ty cons) "Equatable" =
 -- runDriverOutside sw "Comparable" = ""
 -- runDriverOutside sw "Hashable" = ""
 -- swiftz
--- runDriverOutside sw "JSON" = ""
+runDriverOutside sw "JSON" = ""
 runDriverOutside sw x = error ("no known deriver for " <> unpack x)
 
 mkEqCases mkTwo retFun (con, []) =   "    case (." <> con <> sndArg <> "):"
