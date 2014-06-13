@@ -1,0 +1,25 @@
+-- GeoJSON
+data GeoJSON = GeoJSON { _type :: String
+                       , features :: Array Feature }
+  deriving (Printable, Equatable)
+
+data Feature = Feature { _type :: String
+                       , geometry :: Array Coordinate
+                       , properties :: Dictionary String String }
+  deriving (Printable, Equatable)
+
+data Coordinate = Coordinate { _type :: String
+                             , coordinates :: Array Double }
+  deriving (Printable, Equatable)
+
+data List a = Cons a (List a) | Nil
+  deriving (Printable, Equatable)
+
+data Map k v = Empty | Map k v (Map k v)
+  deriving (Printable, Equatable)
+
+data Thing = Thing String Foo
+  deriving (Printable, Equatable)
+
+data Box = Box
+  deriving (Printable, Equatable)

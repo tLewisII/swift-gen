@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Main where
+module CodeGen where
 
 import Prelude hiding (take, drop, head, tail)
 import Data.Text hiding (reverse, zip, filter)
@@ -208,18 +208,6 @@ mkEqCases mkTwo retFun (con, xs) =   "    case let (."
                       sndArg = if mkTwo then ", ." <> con <> "(" <> fields "r" xs <> ")" else ""
 fields idf xs = intercalate ", " (fmap (\(n, _) -> idf <> get n) xs)
 
--- main
-main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    [x] -> do
-      program <- fromParseResult `fmap` parseFile x
-      swift <- return $ transform program
-      putStrLn $ unpack swift
-      -- TODO: check file exits before writing
-
-    _ -> putStrLn "USAGE: file.swift.gen"
 
 -- meh
 transform :: Module -> Text
