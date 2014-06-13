@@ -54,8 +54,9 @@ swiftz:
 
 todo:
 
+- Switch to a `language-swift-quote`
 - A curried `create`
-- swift thrift
+- thrift generation
 - void types?
 - quasi quote method bodies
 - ArrayLiteralConvertible

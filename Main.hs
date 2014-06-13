@@ -23,7 +23,7 @@ prettyPrint sw@(Swift n cs ts ct) =
         [(con, xs)] -> mkCon xs
         (_:_) -> intercalate "\n" (fmap (\(con, xs) -> "  case" <~> con <> "(" <> intercalate ", " (fmap mcon xs) <> ")") ct))
   
-  -- init functions
+  -- init functions and .create
   -- TODO
   
   -- deriving function requirements
@@ -114,12 +114,30 @@ foldup x = [x]
 -- deriving drivers
 
 runDriverInside :: Swift -> Text -> Text
-runDriverInside sw "Printable" = ""
+runDriverInside (Swift n _ _ cs) "Printable" =
+      "  var description: String {"
+  <|> "    get {"
+  <|> (case cs of
+    [(con, [])] ->
+        "      return \"" <> n <> "()\""
+    [(con, xs)] -> -- 1 con, n fields, struct
+        "      return" <~> showCase True con xs
+    
+    _ -> -- enum, n cons
+        "      switch self {"
+        <|> intercalate "\n" (fmap (mkEqCases False showCase) cs)
+        <|> "    }")
+  <|> "    }"
+  <|> "  }"
+  where
+    descStr (n, _) = "\\(" <> n <> ")"
+    showCase _ con xs = "\"" <> con <> "(" <> intercalate ", " (fmap (mkQuote . get . fst) xs) <> ")\""
+    mkQuote x = "\\(" <> x <> ")"
 runDriverInside sw "Equatable" = ""
-runDriverInside sw "Comparable" = ""
-runDriverInside sw "Hashable" = ""
+-- runDriverInside sw "Comparable" = ""
+-- runDriverInside sw "Hashable" = ""
 -- swiftz
-runDriverInside sw "JSON" = ""
+-- runDriverInside sw "JSON" = ""
 runDriverInside sw x = error ("no known deriver for " <> unpack x)
 
 runDriverOutside :: Swift -> Text -> Text
@@ -131,11 +149,11 @@ runDriverOutside (Swift n _ ty cons) "Equatable" =
   (case cons of
     [(con, [])] -> "  return true" -- 1 con, 0 fields
     [(con, xs)] -> -- 1 con, n fields, struct
-        "  return" <~> crossProdIf True xs
-        
+        "  return" <~> crossProdIf True con xs
+    
     _ -> -- enum, n cons
         "  switch (lhs, rhs) {"
-        <|> intercalate "\n" (fmap mkEqCases cons)
+        <|> intercalate "\n" (fmap (mkEqCases True crossProdIf) cons)
         <|> "  }")
   <|>
   "}"
@@ -147,22 +165,29 @@ runDriverOutside (Swift n _ ty cons) "Equatable" =
       [] -> n
       (_:_) -> n <> "<" <> intercalate ", " ty <> ">"
 
-    mkEqCases (con, []) =   "    case (." <> con <> ", ." <> con <> "):"
-                        <|> "      return true"
-    mkEqCases (con, xs) =   "    case let (."
-                                    <> con <> "(" <> fields "l" xs <> "), ."
-                                    <> con <> "(" <> fields "r" xs <> ")):"
-                        <|> "      return" <~> crossProdIf False xs
-    crossProdIf useob xs = intercalate " && " (fmap (\(n, _) -> if useob
+    crossProdIf _ _ [] = "true"
+    crossProdIf useob _ xs = intercalate " && " (fmap (\(n, _) -> if useob
                             then "lhs." <> get n <> " == " <> "rhs." <> get n
                             else "l" <> get n <> " == " <> "r" <> get n) xs)
-    fields idf xs = intercalate ", " (fmap (\(n, _) -> idf <> get n) xs)
 
-runDriverOutside sw "Comparable" = ""
-runDriverOutside sw "Hashable" = ""
+-- runDriverOutside sw "Comparable" = ""
+-- runDriverOutside sw "Hashable" = ""
 -- swiftz
-runDriverOutside sw "JSON" = ""
+-- runDriverOutside sw "JSON" = ""
 runDriverOutside sw x = error ("no known deriver for " <> unpack x)
+
+mkEqCases mkTwo retFun (con, []) =   "    case (." <> con <> sndArg <> "):"
+                    <|> "      return" <~> retFun False con []
+                    where
+                      sndArg = if mkTwo then ", ." <> con else "" 
+mkEqCases mkTwo retFun (con, xs) =   "    case let (."
+                                <> con <> "(" <> fields lPrefix xs <> ")"
+                                <> sndArg <> "):"
+                    <|> "      return" <~> retFun False con xs
+                    where
+                      lPrefix = if mkTwo then "l" else ""
+                      sndArg = if mkTwo then ", ." <> con <> "(" <> fields "r" xs <> ")" else ""
+fields idf xs = intercalate ", " (fmap (\(n, _) -> idf <> get n) xs)
 
 -- main
 main :: IO ()
