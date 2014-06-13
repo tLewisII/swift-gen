@@ -137,23 +137,58 @@ runDriverInside sw "Equatable" = ""
 -- runDriverInside sw "Comparable" = ""
 -- runDriverInside sw "Hashable" = ""
 -- swiftz
-runDriverInside (Swift n d ts [cs]) "JSON" = "" -- error "JSON not implemented"
-  --     "  static func fromJSON(x: JSValue) -> T? {"
-  -- <|> "    var v$N: $T?"
-  -- <|> "    switch x {"
-  -- <|> "      case let .JSObject(d):"
-  -- <|> "        v$N = d[\"$N\"] >>= $JST"
-  -- <|> "        if ($NS) {"
-  -- <|> "          return $T($N: v$N!, ...)"
-  -- <|> "        } else {"
-  -- <|> "          return nil"
-  -- <|> "        }"
-  -- <|> "      default: return nil"
-  -- <|> "    }"
-  -- <|> "  }"
-  -- -- toJson
-  -- <|> "  func toJSON() -> JSValue {"
-  -- <|> "  }"
+runDriverInside (Swift tn d ts [(_, cs)]) "JSON" =
+      "  static func fromJSON(x: JSValue) -> " <> tn <> "? {"
+  -- var v$N: $T?
+  <|> intercalate "\n" (fmap mkVar cs)
+  <|> "    switch x {"
+  <|> "      case let .JSObject(d):"
+
+  -- v$N = d[\"$N\"] >>= $JST
+  <|> intercalate "\n" (fmap mkPat cs)
+  <|> "        if (" <> intercalate " && " (fmap ((<>) "v" . get . fst) cs) <> ") {"
+  <|> "          return " <> tn <> "(" <> intercalate ", " (fmap ((\z -> z <> ": v" <> z <> "!") . get . fst) cs) <> ")"
+  <|> "        } else {"
+  <|> "          return nil"
+  <|> "        }"
+  <|> "      default: return nil"
+  <|> "    }"
+  <|> "  }"
+  -- toJson
+  <|> "  func toJSON(x: " <> tn <> ") -> JSValue {"
+  <|> "    return JSValue.JSObject([" <> intercalate ", " (fmap mkDict cs) <> "])"
+  <|> "  }"
+  where
+    mkVar (cn, t) = "    var v" <> get cn <> ": " <> t <> "?"
+    mkPat (cn, t) = "        v" <> get cn <> " = d[\"" <> get cn <> "\"] >>= " <> js t <> ".fromJSON"
+    mkDict (cn, t) = "\"" <> get cn <> "\": ." <> jsto cn t
+    
+    js "String" = "JString"
+    js x = if isPrefixOf "Array" x -- eek. need language-swift-quote
+      -- wont work with nested <>, balanced brackers. need ^
+      then let t = (Data.Text.takeWhile (\y -> y /= '>') (drop (Data.Text.length "Array<") x))
+           in "JArray<" <> t <> ", " <> instT x t <> ">"
+      else if isPrefixOf "Dictionary<" x
+        then let t = (Data.Text.takeWhile (\y -> y /= '>') (drop (Data.Text.length "Dictionary<String, ") x))
+           in "JDictionary<String, " <> instT t t <> ">"
+        else error ("unimplemented fromJSON type: " <> unpack x)
+    
+    instT "Array<Double>" _ = "JDouble"
+    instT "Dictionary<String, String>" _ = "JDictionary"
+    instT "String" _ = "JString"
+    instT x y = y
+
+    jsto cn "String" = "JSString(x." <> get cn <> ")"
+    jsto cn x = if isPrefixOf "Array<" x -- eek. need language-swift-quote
+      then "JSArray(x." <> get cn <> ".map({ " <> inst x <> ".toJSON($0) }))"
+      else if isPrefixOf "Dictionary<" x
+        then "JSObject(x." <> get cn <> ".mapValues({ " <> inst x <> ".toJSON($0.1) }))"
+        else error ("unimplemented toJSON type: " <> unpack x)
+    
+    inst "Dictionary<Double, Double>" = "jdouble"
+    inst "Dictionary<String, String>" = "jstring"
+    inst "Array<Double>" = "jdouble"
+    inst x = "$0"
 
 -- We could do this one day
 runDriverInside _ "JSON" = error "json can only be derived on a struct, not an enum"
