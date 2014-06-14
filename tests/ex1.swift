@@ -1,6 +1,7 @@
 struct GeoJSON : Printable, Equatable {
   let type: String
   let features: Array<Feature>
+
   var description: String {
     get {
       return "GeoJSON(\(type), \(features))"
@@ -13,8 +14,9 @@ func==(lhs: GeoJSON, rhs: GeoJSON) -> Bool {
 
 struct Feature : Printable, Equatable {
   let type: String
-  let geometry: Array<Coordinate>
+  let geometry: Coordinate
   let properties: Dictionary<String, String>
+
   var description: String {
     get {
       return "Feature(\(type), \(geometry), \(properties))"
@@ -28,6 +30,7 @@ func==(lhs: Feature, rhs: Feature) -> Bool {
 struct Coordinate : Printable, Equatable {
   let type: String
   let coordinates: Array<Double>
+
   var description: String {
     get {
       return "Coordinate(\(type), \(coordinates))"
@@ -41,6 +44,7 @@ func==(lhs: Coordinate, rhs: Coordinate) -> Bool {
 enum List<A> : Printable, Equatable {
   case Cons(A, List<A>)
   case Nil()
+
   var description: String {
     get {
       switch self {
@@ -64,6 +68,7 @@ func==<A: Equatable>(lhs: List<A>, rhs: List<A>) -> Bool {
 enum Map<K, V> : Printable, Equatable {
   case Empty()
   case Map(K, V, Map<K, V>)
+
   var description: String {
     get {
       switch self {
@@ -87,6 +92,7 @@ func==<K: Equatable, V: Equatable>(lhs: Map<K, V>, rhs: Map<K, V>) -> Bool {
 struct Thing : Printable, Equatable {
   let a1: String
   let a2: Foo
+
   var description: String {
     get {
       return "Thing(\(a1), \(a2))"
@@ -98,6 +104,7 @@ func==(lhs: Thing, rhs: Thing) -> Bool {
 }
 
 struct Box : Printable, Equatable {
+
 
   var description: String {
     get {

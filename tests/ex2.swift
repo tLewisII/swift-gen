@@ -1,6 +1,7 @@
 struct GeoJSON : Printable, Equatable, JSON {
   let type: String
   let features: Array<Feature>
+
   var description: String {
     get {
       return "GeoJSON(\(type), \(features))"
@@ -31,8 +32,9 @@ func==(lhs: GeoJSON, rhs: GeoJSON) -> Bool {
 
 struct Feature : Printable, Equatable, JSON {
   let type: String
-  let geometry: Array<Coordinate>
+  let geometry: Coordinate
   let properties: Dictionary<String, String>
+
   var description: String {
     get {
       return "Feature(\(type), \(geometry), \(properties))"
@@ -40,12 +42,12 @@ struct Feature : Printable, Equatable, JSON {
   }
   static func fromJSON(x: JSValue) -> Feature? {
     var vtype: String?
-    var vgeometry: Array<Coordinate>?
+    var vgeometry: Coordinate?
     var vproperties: Dictionary<String, String>?
     switch x {
       case let .JSObject(d):
         vtype = d["type"] >>= JString.fromJSON
-        vgeometry = d["geometry"] >>= JArray<Coordinate, Coordinate>.fromJSON
+        vgeometry = d["geometry"] >>= Coordinate.fromJSON
         vproperties = d["properties"] >>= JDictionary<String, JString>.fromJSON
         if (vtype && vgeometry && vproperties) {
           return Feature(type: vtype!, geometry: vgeometry!, properties: vproperties!)
@@ -56,7 +58,7 @@ struct Feature : Printable, Equatable, JSON {
     }
   }
   func toJSON(x: Feature) -> JSValue {
-    return JSValue.JSObject(["type": .JSString(x.type), "geometry": .JSArray(x.geometry.map({ $0.toJSON($0) })), "properties": .JSObject(x.properties.mapValues({ jstring.toJSON($0.1) }))])
+    return JSValue.JSObject(["type": .JSString(x.type), "geometry": x.geometry.toJSON(x.geometry), "properties": .JSObject(mapValues(x.properties, { jstring.toJSON($0.1) }))])
   }
 }
 func==(lhs: Feature, rhs: Feature) -> Bool {
@@ -66,6 +68,7 @@ func==(lhs: Feature, rhs: Feature) -> Bool {
 struct Coordinate : Printable, Equatable, JSON {
   let type: String
   let coordinates: Array<Double>
+
   var description: String {
     get {
       return "Coordinate(\(type), \(coordinates))"
