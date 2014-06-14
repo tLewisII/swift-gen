@@ -25,6 +25,7 @@ prettyPrint sw@(Swift n cs ts ct) =
   
   -- init functions and .create
   -- TODO
+  <|> ""
   
   -- deriving function requirements
   <|> intercalate "\n" (filter (/= "") (fmap (runDriverInside sw) cs))
@@ -161,7 +162,7 @@ runDriverInside (Swift tn d ts [(_, cs)]) "JSON" =
   where
     mkVar (cn, t) = "    var v" <> get cn <> ": " <> t <> "?"
     mkPat (cn, t) = "        v" <> get cn <> " = d[\"" <> get cn <> "\"] >>= " <> js t <> ".fromJSON"
-    mkDict (cn, t) = "\"" <> get cn <> "\": ." <> jsto cn t
+    mkDict (cn, t) = "\"" <> get cn <> "\": " <> jsto cn t
     
     js "String" = "JString"
     js x = if isPrefixOf "Array" x -- eek. need language-swift-quote
@@ -171,19 +172,23 @@ runDriverInside (Swift tn d ts [(_, cs)]) "JSON" =
       else if isPrefixOf "Dictionary<" x
         then let t = (Data.Text.takeWhile (\y -> y /= '>') (drop (Data.Text.length "Dictionary<String, ") x))
            in "JDictionary<String, " <> instT t t <> ">"
-        else error ("unimplemented fromJSON type: " <> unpack x)
+        else x -- simple user types
+        -- error ("unimplemented fromJSON type: " <> unpack x)
     
     instT "Array<Double>" _ = "JDouble"
     instT "Dictionary<String, String>" _ = "JDictionary"
     instT "String" _ = "JString"
     instT x y = y
 
-    jsto cn "String" = "JSString(x." <> get cn <> ")"
+    jsto cn "String" = ".JSString(x." <> get cn <> ")"
     jsto cn x = if isPrefixOf "Array<" x -- eek. need language-swift-quote
-      then "JSArray(x." <> get cn <> ".map({ " <> inst x <> ".toJSON($0) }))"
+      then ".JSArray(x." <> get cn <> ".map({ " <> inst x <> ".toJSON($0) }))"
       else if isPrefixOf "Dictionary<" x
-        then "JSObject(x." <> get cn <> ".mapValues({ " <> inst x <> ".toJSON($0.1) }))"
-        else error ("unimplemented toJSON type: " <> unpack x)
+        then ".JSObject(mapValues(x." <> get cn <> ", { " <> inst x <> ".toJSON($0.1) }))"
+        -- user types
+            -- let cv: JSValue = x.geometry.toJSON(x.geometry)
+        else "x." <> get cn <> ".toJSON(x." <> get cn <> ")"
+        -- error ("unimplemented toJSON type: " <> unpack x)
     
     inst "Dictionary<Double, Double>" = "jdouble"
     inst "Dictionary<String, String>" = "jstring"

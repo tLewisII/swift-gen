@@ -18,7 +18,7 @@ data GeoJSON = GeoJSON { _type :: String
   deriving (Printable, Equatable, JSON)
 
 data Feature = Feature { _type :: String
-                       , geometry :: Array Coordinate
+                       , geometry :: Coordinate
                        , properties :: Dictionary String String }
   deriving (Printable, Equatable, JSON)
 
@@ -55,7 +55,8 @@ struct GeoJSON : Printable, Equatable, JSON {
     }
   }
   func toJSON(x: GeoJSON) -> JSValue {
-    return JSValue.JSObject(["type": .JSString(x.type), "features": .JSArray(x.features.map({ $0.toJSON($0) }))])
+    return JSValue.JSObject(["type": .JSString(x.type)
+            , "features": .JSArray(x.features.map({ $0.toJSON($0) }))])
   }
 }
 func==(lhs: GeoJSON, rhs: GeoJSON) -> Bool {
@@ -66,8 +67,25 @@ func==(lhs: GeoJSON, rhs: GeoJSON) -> Bool {
 
 Let's see this in action:
 ```swift
-println(GeoJSON(type: "Feature", features: [Feature(type: "Coordinate", geometry: [Coordinate(type: "fixed", coordinates: [2.0, 4.0])], properties: ["foo": "bar"])]))
-// prints GeoJSON(Feature, [Feature(Coordinate, [Coordinate(fixed, [2.0, 4.0])], [foo: bar])])
+let location = GeoJSON(type: "FeatureCollection"
+                      ,features: [
+                        Feature(type: "Feature"
+                               ,geometry: Coordinate(type: "Point"
+                                                    ,coordinates: [2.0, 4.0])
+                               ,properties: ["foo": "bar"])])
+
+println(location)
+// GeoJSON(FeatureCollection, [Feature(Feature
+//                                    ,Coordinate(Point, [2.0, 4.0]), [foo: bar])])
+
+println(location.toJSON(location))
+// {"type":"FeatureCollection"
+//  ,"features":[
+//     {"geometry":
+//       {"type":"Point"
+//       ,"coordinates":[2.0, 4.0]}
+//       ,"properties":{"foo":"bar"}
+//     ,"type":"Feature"}]}
 ```
 
 ## Usage

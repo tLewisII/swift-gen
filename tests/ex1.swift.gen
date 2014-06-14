@@ -4,7 +4,7 @@ data GeoJSON = GeoJSON { _type :: String
   deriving (Printable, Equatable)
 
 data Feature = Feature { _type :: String
-                       , geometry :: Array Coordinate
+                       , geometry :: Coordinate
                        , properties :: Dictionary String String }
   deriving (Printable, Equatable)
 
