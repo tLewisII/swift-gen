@@ -1,0 +1,11 @@
+data List a = Cons a (List a) | Nil
+  deriving (Printable, Equatable)
+
+data Map k v = Empty | Map k v (Map k v)
+  deriving (Printable, Equatable)
+
+data Thing = Thing String Foo
+  deriving (Printable, Equatable)
+
+data Box = Box
+  deriving (Printable, Equatable)

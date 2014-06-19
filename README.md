@@ -4,7 +4,7 @@ Generate Swift structs / enums with protocol implementations!
 
 *You can get pretty far without macros!*
 
-[Download Binary (OS X x86)] **Coming soon!**
+[Download Binary (OS X x64)] **Coming soon!**
 
 ## Example
 
